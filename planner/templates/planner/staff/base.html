@@ -1,0 +1,9 @@
+{% extends "planner/base.html" %}
+{% block header %}
+  <strong>Мастер-классы · администратор</strong>
+  <a href="{% url 'planner:grid' %}">Сетка на день</a>
+  <a href="{% url 'admin:planner_request_changelist' %}">Заявки</a>
+  <a href="{% url 'admin:index' %}">Справочники</a>
+  <a href="{% url 'planner:request_form' %}">Форма для школ</a>
+{% endblock %}
+{% block main_class %}wide{% endblock %}

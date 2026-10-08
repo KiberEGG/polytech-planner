@@ -285,3 +285,64 @@ class PublicFormTests(Fixtures, TestCase):
     def test_other_people_cannot_see_request(self):
         req = self.request([self.mc("Роботы")])
         self.assertEqual(self.client.get(f"/request/{req.pk}/").status_code, 404)
+
+
+class StaffApiTests(Fixtures, TestCase):
+    def setUp(self):
+        super().setUp()
+        from django.contrib.auth.models import User
+
+        self.user = User.objects.create_user("staff", password="x", is_staff=True)
+        self.client.force_login(self.user)
+
+    def post(self, url, body):
+        import json
+
+        return self.client.post(url, json.dumps(body), content_type="application/json").json()
+
+    def test_grid_requires_staff(self):
+        self.client.logout()
+        self.assertEqual(self.client.get("/staff/").status_code, 302)
+
+    def test_grid_renders(self):
+        self.room(self.av, "1109")
+        self.request([self.mc("Роботы")])
+        run_distribution()
+        resp = self.client.get(f"/staff/?date={D.isoformat()}")
+        self.assertContains(resp, "АВ 1109")
+
+    def test_place_warn_then_force(self):
+        room = self.room(self.av, "1109", capacity=10)
+        lesson = self.request([self.mc("Роботы")], participants=20).lessons.get()
+        url = f"/staff/api/lessons/{lesson.pk}/place"
+        body = {"date": D.isoformat(), "room_id": room.pk, "start": "09:00"}
+        res = self.post(url, body)
+        self.assertFalse(res["ok"])
+        self.assertTrue(res["warnings"])
+        res = self.post(url, {**body, "force": True})
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["lesson"]["is_manual"])
+        res = self.post(url, {**body, "start": "07:00", "force": True})
+        self.assertFalse(res["ok"])
+        self.assertTrue(res["errors"])
+
+    def test_teacher_change_checks_busy(self):
+        teacher = Teacher.objects.create(full_name="Петров")
+        self.room(self.av, "1")
+        self.room(self.av, "2")
+        self.request([self.mc("Роботы", teacher=teacher)], classes=[self.c9a])
+        other = self.request([self.mc("Химия")], classes=[self.c9b])
+        run_distribution()
+        lesson = other.lessons.get()
+        res = self.post(f"/staff/api/lessons/{lesson.pk}/teacher", {"teacher_id": teacher.pk})
+        self.assertFalse(res["ok"])
+        self.assertIn("Преподаватель занят", res["errors"][0])
+
+    def test_window_shrink_releases_lesson(self):
+        self.room(self.av, "1109")
+        req = self.request([self.mc("Роботы")])
+        run_distribution()
+        window = RoomWindow.objects.get()
+        res = self.post("/staff/api/windows", {"id": window.pk, "from": "13:00", "to": "17:00"})
+        self.assertEqual(res["released"], 1)
+        self.assertEqual(req.lessons.get().status, Lesson.Status.CONFLICT)
