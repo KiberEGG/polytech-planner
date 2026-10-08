@@ -1,0 +1,20 @@
+{% extends "planner/base.html" %}
+{% block title %}Заявка №{{ req.pk }} отправлена{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Заявка №{{ req.pk }} отправлена</h1>
+  <p class="muted">Администратор рассмотрит заявку и свяжется с вами. Сохраните номер заявки.</p>
+  <table class="list">
+    <tr><th>Школа</th><td>{{ req.school_display }}</td></tr>
+    <tr><th>Классы</th><td>{{ req.classes_display }}</td></tr>
+    <tr><th>Учеников</th><td>{{ req.participants }}</td></tr>
+    {% if req.event %}<tr><th>Мероприятие</th><td>{{ req.event.title }}</td></tr>{% endif %}
+    <tr><th>Мастер-классы</th><td>{% for l in req.lessons.all %}{{ l.master_class.title }} ({{ l.master_class.duration_min }} мин){% if not forloop.last %}<br>{% endif %}{% endfor %}</td></tr>
+    <tr><th>Доступные дни</th><td>{% for d in req.days.all %}{{ d }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td></tr>
+    <tr><th>Площадка</th><td>{{ req.site|default:"любая" }}</td></tr>
+    <tr><th>Контактное лицо</th><td>{{ req.contact_name }}, {{ req.contact_position }}<br>{{ req.phone }}{% if req.email %}, {{ req.email }}{% endif %}</td></tr>
+    {% if req.comment %}<tr><th>Комментарий</th><td>{{ req.comment|linebreaksbr }}</td></tr>{% endif %}
+  </table>
+  <p><a class="btn secondary" href="{% url 'planner:request_form' %}">Подать ещё одну заявку</a></p>
+</div>
+{% endblock %}

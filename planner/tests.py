@@ -227,3 +227,61 @@ class AcceptRequestTests(Fixtures, TestCase):
         self.assertEqual(req.status, Request.Status.ACCEPTED)
         self.assertEqual(req.school.name, "Лицей 2")
         self.assertEqual(sorted(c.name for c in req.classes.all()), ["10а", "10б"])
+
+
+class PublicFormTests(Fixtures, TestCase):
+    def base_post(self, **extra):
+        data = {
+            "school": "", "school_name": "Школа 57", "classes_text": "9а, 9б",
+            "participants": "20", "site": "", "contact_name": "Иванова И. И.",
+            "contact_position": "классный руководитель", "phone": "+7 900 000-00-00",
+            "consent": "on",
+            "days-TOTAL_FORMS": "3", "days-INITIAL_FORMS": "0",
+            "days-MIN_NUM_FORMS": "0", "days-MAX_NUM_FORMS": "10",
+        }
+        data.update(extra)
+        return data
+
+    def test_master_class_request(self):
+        mc = self.mc("Роботы")
+        future = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+        resp = self.client.post("/", self.base_post(
+            kind="master_classes", master_classes=[mc.pk],
+            **{"days-0-date": future, "days-0-time_from": "10:00", "days-0-time_to": "14:00"},
+        ))
+        req = Request.objects.get()
+        self.assertRedirects(resp, f"/request/{req.pk}/")
+        self.assertEqual(req.status, Request.Status.NEW)
+        self.assertEqual(req.source, Request.Source.FORM)
+        self.assertIsNone(req.school)
+        self.assertEqual(req.days.count(), 1)
+        self.assertEqual(req.lessons.get().master_class, mc)
+        page = self.client.get(resp.url)
+        self.assertContains(page, f"Заявка №{req.pk}")
+
+    def test_event_request_uses_event_day_and_selected_classes(self):
+        a, b = self.mc("Роботы"), self.mc("Химия")
+        from .models import Event
+        event = Event.objects.create(
+            title="День открытых дверей", date=datetime.date.today() + datetime.timedelta(days=5),
+            time_from=t("10:00"), time_to=t("15:00"),
+        )
+        event.master_classes.set([a, b])
+        self.client.post("/", self.base_post(kind="event", event=event.pk, event_master_classes=[a.pk]))
+        req = Request.objects.get()
+        self.assertEqual(req.event, event)
+        self.assertEqual([l.master_class for l in req.lessons.all()], [a])
+        self.assertEqual(req.days.get().date, event.date)
+
+    def test_consent_and_days_required(self):
+        mc = self.mc("Роботы")
+        data = self.base_post(kind="master_classes", master_classes=[mc.pk])
+        del data["consent"]
+        resp = self.client.post("/", data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(Request.objects.exists())
+        self.assertContains(resp, "Укажите хотя бы один доступный день")
+
+    def test_other_people_cannot_see_request(self):
+        req = self.request([self.mc("Роботы")])
+        self.assertEqual(self.client.get(f"/request/{req.pk}/").status_code, 404)

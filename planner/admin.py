@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 
 from . import models
 from .scheduler import run_distribution
-from .services import accept_request, reject_request
+from .services import accept_request, reject_request, sync_request_lessons
 
 admin.site.site_header = "Планирование мастер-классов"
 admin.site.site_title = "Мастер-классы"
@@ -140,6 +140,10 @@ class RequestAdmin(admin.ModelAdmin):
         if not change:
             obj.source = models.Request.Source.ADMIN
         super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        sync_request_lessons(form.instance)
 
     @admin.action(description="Принять (школа и классы попадут в справочник)")
     def accept(self, request, queryset):

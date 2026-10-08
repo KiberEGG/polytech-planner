@@ -1,0 +1,104 @@
+{% extends "planner/base.html" %}
+{% block title %}Заявка на мастер-классы{% endblock %}
+{% block content %}
+<h1>Заявка на мастер-классы</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="card">
+    {% include "planner/_field.html" with field=form.kind %}
+    <div id="event-block">
+      {% include "planner/_field.html" with field=form.event %}
+      <p id="event-info" class="muted"></p>
+      {% include "planner/_field.html" with field=form.event_master_classes %}
+    </div>
+    <div id="mc-block">
+      {% include "planner/_field.html" with field=form.master_classes %}
+      <div class="field">
+        <label>Доступные дни *</label>
+        <div class="help">Одна или несколько дат с удобным временем — система выберет одну из них.</div>
+        {{ days.management_form }}
+        {{ days.non_form_errors }}
+        {% for f in days %}
+          <div class="days-row">{{ f.date }}{{ f.time_from }}{{ f.time_to }}</div>
+          {{ f.non_field_errors }}{{ f.date.errors }}{{ f.time_from.errors }}{{ f.time_to.errors }}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Школа</h2>
+    {% include "planner/_field.html" with field=form.school %}
+    <div id="school-name-block">{% include "planner/_field.html" with field=form.school_name %}</div>
+    {% include "planner/_field.html" with field=form.classes_text %}
+    <datalist id="classes-list"></datalist>
+    {% include "planner/_field.html" with field=form.participants %}
+    {% include "planner/_field.html" with field=form.site %}
+  </div>
+  <div class="card">
+    <h2>Контактное лицо</h2>
+    {% include "planner/_field.html" with field=form.contact_name %}
+    {% include "planner/_field.html" with field=form.contact_position %}
+    {% include "planner/_field.html" with field=form.phone %}
+    {% include "planner/_field.html" with field=form.email %}
+    {% include "planner/_field.html" with field=form.comment %}
+    {% include "planner/_field.html" with field=form.consent %}
+  </div>
+  <button type="submit">Отправить заявку</button>
+</form>
+{{ events|json_script:"events-data" }}
+{{ school_classes|json_script:"school-classes-data" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const events = JSON.parse(document.getElementById("events-data").textContent);
+  const schoolClasses = JSON.parse(document.getElementById("school-classes-data").textContent);
+  const eventBlock = document.getElementById("event-block");
+  const mcBlock = document.getElementById("mc-block");
+  const eventSelect = document.getElementById("id_event");
+  const eventInfo = document.getElementById("event-info");
+  const eventMcItems = document.querySelectorAll("#field-event_master_classes li");
+  const posted = {{ form.is_bound|yesno:"true,false" }};
+
+  function kind() {
+    const checked = document.querySelector("input[name=kind]:checked");
+    return checked ? checked.value : "event";
+  }
+  function updateKind() {
+    eventBlock.classList.toggle("hidden", kind() !== "event");
+    mcBlock.classList.toggle("hidden", kind() === "event");
+  }
+  function updateEvent(resetChecks) {
+    const ev = events[eventSelect.value];
+    eventInfo.textContent = ev ? `Дата: ${ev.date}, время: ${ev.time}` : "";
+    eventMcItems.forEach((li) => {
+      const input = li.querySelector("input");
+      const inEvent = ev && ev.master_classes.includes(Number(input.value));
+      li.classList.toggle("hidden", !inEvent);
+      if (!inEvent) input.checked = false;
+      else if (resetChecks) input.checked = true;
+    });
+  }
+  const schoolSelect = document.getElementById("id_school");
+  const classesInput = document.getElementById("id_classes_text");
+  const classesList = document.getElementById("classes-list");
+  classesInput.setAttribute("list", "classes-list");
+  function updateSchool() {
+    document.getElementById("school-name-block").classList.toggle("hidden", !!schoolSelect.value);
+    classesList.innerHTML = "";
+    (schoolClasses[schoolSelect.value] || []).forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      classesList.appendChild(opt);
+    });
+  }
+  document.querySelectorAll("input[name=kind]").forEach((el) => el.addEventListener("change", updateKind));
+  eventSelect.addEventListener("change", () => updateEvent(true));
+  schoolSelect.addEventListener("change", updateSchool);
+  updateKind();
+  updateEvent(!posted);
+  updateSchool();
+})();
+</script>
+{% endblock %}

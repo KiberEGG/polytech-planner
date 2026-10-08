@@ -1,0 +1,15 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Мастер-классы Политеха{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'planner/style.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="top">{% block header %}<strong>Мастер-классы Политеха</strong>{% endblock %}</header>
+  <main class="{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

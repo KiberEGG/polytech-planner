@@ -81,3 +81,25 @@ def release_lessons_outside_windows(room_id, date):
     for lesson in released:
         unplace_lesson(lesson, Lesson.Status.CONFLICT, WINDOW_SHIFT_REASON)
     return released
+
+
+def sync_request_lessons(request, master_classes=None):
+    """Для заявки на мероприятие — день из мероприятия; занятия — по мастер-классам.
+
+    Если master_classes не переданы и у заявки на мероприятие ещё нет занятий,
+    берутся все мастер-классы мероприятия.
+    """
+    from .models import RequestDay
+
+    if request.event_id:
+        event = request.event
+        request.days.exclude(
+            date=event.date, time_from=event.time_from, time_to=event.time_to
+        ).delete()
+        RequestDay.objects.get_or_create(
+            request=request, date=event.date, time_from=event.time_from, time_to=event.time_to
+        )
+        if master_classes is None and not request.lessons.exists():
+            master_classes = event.master_classes.all()
+    for mc in master_classes or ():
+        Lesson.objects.get_or_create(request=request, master_class=mc)
