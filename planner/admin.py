@@ -1,6 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from . import models
+from .scheduler import run_distribution
+from .services import accept_request, reject_request
 
 admin.site.site_header = "Планирование мастер-классов"
 admin.site.site_title = "Мастер-классы"
@@ -132,6 +134,36 @@ class RequestAdmin(admin.ModelAdmin):
     list_filter = ["status", "source", "event"]
     search_fields = ["school__name", "school_name", "contact_name"]
     inlines = [RequestClassInline, RequestDayInline, LessonInline]
+    actions = ["accept", "reject", "distribute"]
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.source = models.Request.Source.ADMIN
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description="Принять (школа и классы попадут в справочник)")
+    def accept(self, request, queryset):
+        for obj in queryset.exclude(status=models.Request.Status.ACCEPTED):
+            if obj.school_id is None and not obj.school_name.strip():
+                self.message_user(request, f"{obj}: не указана школа.", messages.ERROR)
+                continue
+            accept_request(obj)
+        self.message_user(request, "Заявки приняты.")
+
+    @admin.action(description="Отклонить")
+    def reject(self, request, queryset):
+        for obj in queryset:
+            reject_request(obj)
+        self.message_user(request, "Заявки отклонены.")
+
+    @admin.action(description="Распределить выбранные принятые заявки")
+    def distribute(self, request, queryset):
+        report = run_distribution(queryset.filter(status=models.Request.Status.ACCEPTED))
+        self.message_user(
+            request,
+            f"Назначено: {report.assigned}, конфликтов: {report.conflicts}, "
+            f"повторов: {report.repeats}.",
+        )
 
     @admin.display(description="школа")
     def school_display(self, obj):

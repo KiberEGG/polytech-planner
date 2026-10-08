@@ -432,6 +432,10 @@ class Lesson(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def master_class_duration(self):
+        return datetime.timedelta(minutes=self.master_class.duration_min)
+
+    @property
     def is_placed(self):
         return self.room_id is not None and self.start_at is not None
 
