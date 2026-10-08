@@ -309,7 +309,9 @@ class StaffApiTests(Fixtures, TestCase):
         self.request([self.mc("Роботы")])
         run_distribution()
         resp = self.client.get(f"/staff/?date={D.isoformat()}")
-        self.assertContains(resp, "АВ 1109")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["data"]["rooms"][0]["label"], "АВ 1109")
+        self.assertEqual(len(resp.context["data"]["lessons"]), 1)
 
     def test_place_warn_then_force(self):
         room = self.room(self.av, "1109", capacity=10)
