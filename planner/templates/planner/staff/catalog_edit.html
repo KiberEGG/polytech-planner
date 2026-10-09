@@ -1,0 +1,35 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}{{ entry.title }}{% endblock %}
+{% block content %}
+<div class="narrow-col">
+<p><a href="{% url 'planner:catalog_list' kind %}">← {{ entry.title }}</a></p>
+<h1>{% if obj %}{{ obj }}{% else %}Новая запись{% endif %}</h1>
+<form method="post" class="card" novalidate>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}{% include "planner/_field.html" %}{% endfor %}
+  {% if inline %}
+    <h2>{{ entry.inline_title }}</h2>
+    {{ inline.management_form }}
+    {{ inline.non_form_errors }}
+    {% for f in inline %}
+      <div class="inline-row">
+        {{ f.id }}
+        {% for field in f.visible_fields %}{% if field.name != "DELETE" %}{{ field }}{% endif %}{% endfor %}
+        {% if f.instance.pk %}<label class="muted">{{ f.DELETE }} удалить</label>{% endif %}
+      </div>
+      {{ f.non_field_errors }}{% for field in f.visible_fields %}{{ field.errors }}{% endfor %}
+    {% endfor %}
+    {% if kind == "room" %}<p class="muted small">Окна можно также менять в сетке на день. Занятия, которые после изменения окна перестанут в него помещаться, получат статус «конфликт».</p>{% endif %}
+  {% elif entry.inline_title %}
+    <p class="muted">{{ entry.inline_title }} можно добавить после сохранения.</p>
+  {% endif %}
+  <div class="btn-row"><button type="submit">Сохранить</button></div>
+</form>
+{% if obj %}
+<form method="post" action="{% url 'planner:catalog_delete' kind obj.pk %}" onsubmit="return confirm('Удалить «{{ obj|escapejs }}»?')">
+  {% csrf_token %}<button class="btn secondary danger">Удалить</button>
+</form>
+{% endif %}
+</div>
+{% endblock %}

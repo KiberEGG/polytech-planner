@@ -370,3 +370,139 @@ class ReportTests(StaffClient, TestCase):
         ws = load_workbook(io.BytesIO(resp.content)).active
         self.assertEqual(ws["E4"].value, "Роботы")
         self.assertEqual(self.client.get("/staff/report/nope/").status_code, 404)
+
+
+class StaffRequestPagesTests(StaffClient, TestCase):
+    def form_request(self, school_name="Лицей 2", classes="10а и 10б"):
+        req = Request.objects.create(
+            school_name=school_name, classes_text=classes, participants=25,
+            contact_name="Сидоров", contact_position="завуч", phone="2", source=Request.Source.FORM,
+        )
+        RequestDay.objects.create(request=req, date=D, time_from=t("09:00"), time_to=t("17:00"))
+        Lesson.objects.create(request=req, master_class=self.mc("Роботы"))
+        return req
+
+    def test_login_redirect(self):
+        self.client.logout()
+        resp = self.client.get("/staff/requests/")
+        self.assertRedirects(resp, "/staff/login/?next=/staff/requests/")
+
+    def test_list_tabs_and_search(self):
+        req = self.form_request()
+        resp = self.client.get("/staff/requests/")
+        self.assertContains(resp, "Лицей 2")
+        resp = self.client.get("/staff/requests/?status=accepted")
+        self.assertNotContains(resp, "Лицей 2")
+        resp = self.client.get(f"/staff/requests/?status=all&q={req.pk}")
+        self.assertContains(resp, "Лицей 2")
+
+    def test_accept_new_school_goes_to_catalog(self):
+        req = self.form_request()
+        resp = self.client.post(f"/staff/requests/{req.pk}/", {"action": "accept", "school": ""}, follow=True)
+        self.assertContains(resp, "Школа добавлена в справочник")
+        req.refresh_from_db()
+        self.assertEqual(req.status, Request.Status.ACCEPTED)
+        self.assertEqual(req.school.name, "Лицей 2")
+        self.assertEqual(req.classes.count(), 2)
+
+    def test_accept_with_existing_school(self):
+        req = self.form_request(school_name="школа 1 (опечатка)", classes="9а")
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "accept", "school": self.school.pk})
+        req.refresh_from_db()
+        self.assertEqual(req.school, self.school)
+        self.assertEqual(list(req.classes.all()), [self.c9a])
+        self.assertEqual(School.objects.count(), 1)
+
+    def test_distribute_and_reject_frees_rooms(self):
+        self.room(self.av, "1109")
+        req = self.form_request()
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "accept", "school": ""})
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "distribute"})
+        self.assertEqual(req.lessons.get().status, Lesson.Status.ASSIGNED)
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "reject"})
+        lesson = req.lessons.get()
+        self.assertEqual(lesson.status, Lesson.Status.PENDING)
+        self.assertIsNone(lesson.room)
+
+    def test_edit_days_and_lessons(self):
+        req = self.form_request()
+        day = req.days.get()
+        resp = self.client.post(f"/staff/requests/{req.pk}/", {
+            "action": "save", "school_name": "Лицей 2", "classes_text": "10а", "participants": "30",
+            "site": "", "contact_name": "Сидоров", "contact_position": "завуч", "phone": "2",
+            "email": "", "comment": "",
+            "days-TOTAL_FORMS": "2", "days-INITIAL_FORMS": "1", "days-MIN_NUM_FORMS": "0", "days-MAX_NUM_FORMS": "1000",
+            "days-0-id": day.pk, "days-0-date": D.isoformat(), "days-0-time_from": "09:00", "days-0-time_to": "12:00",
+            "days-1-date": (D + datetime.timedelta(days=1)).isoformat(), "days-1-time_from": "10:00", "days-1-time_to": "13:00",
+        })
+        self.assertEqual(resp.status_code, 302)
+        req.refresh_from_db()
+        self.assertEqual(req.participants, 30)
+        self.assertEqual(req.days.count(), 2)
+        mc = self.mc("Химия")
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "add_lesson", "master_class": mc.pk})
+        self.assertEqual(req.lessons.count(), 2)
+        lesson = req.lessons.get(master_class=mc)
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "toggle_repeat", "lesson": lesson.pk})
+        lesson.refresh_from_db()
+        self.assertTrue(lesson.allow_repeat)
+        self.client.post(f"/staff/requests/{req.pk}/", {"action": "delete_lesson", "lesson": lesson.pk})
+        self.assertEqual(req.lessons.count(), 1)
+
+    def test_staff_create_request_accept_now(self):
+        mc = self.mc("Роботы")
+        resp = self.client.post("/staff/requests/new/", {
+            "kind": "master_classes", "master_classes": [mc.pk], "school": self.school.pk, "school_name": "",
+            "classes_text": "9б", "participants": "15", "site": "", "contact_name": "Иванова",
+            "contact_position": "учитель", "phone": "1", "accept_now": "on",
+            "days-TOTAL_FORMS": "1", "days-INITIAL_FORMS": "0", "days-MIN_NUM_FORMS": "0", "days-MAX_NUM_FORMS": "10",
+            "days-0-date": (datetime.date.today() + datetime.timedelta(days=3)).isoformat(),
+            "days-0-time_from": "10:00", "days-0-time_to": "14:00",
+        })
+        req = Request.objects.get()
+        self.assertRedirects(resp, f"/staff/requests/{req.pk}/")
+        self.assertEqual(req.source, Request.Source.ADMIN)
+        self.assertEqual(req.status, Request.Status.ACCEPTED)
+        self.assertEqual(list(req.classes.all()), [self.c9b])
+
+
+class CatalogTests(StaffClient, TestCase):
+    def test_pages_render(self):
+        self.room(self.av, "1109")
+        self.assertEqual(self.client.get("/staff/catalog/").status_code, 200)
+        for kind in ["building", "room", "teacher", "master_class", "event", "school"]:
+            self.assertEqual(self.client.get(f"/staff/catalog/{kind}/").status_code, 200, kind)
+            self.assertEqual(self.client.get(f"/staff/catalog/{kind}/new/").status_code, 200, kind)
+        room = Room.objects.get()
+        self.assertContains(self.client.get(f"/staff/catalog/room/{room.pk}/"), "Окна аудитории")
+        self.assertEqual(self.client.get("/staff/catalog/nope/").status_code, 404)
+
+    def test_create_room_then_add_window(self):
+        resp = self.client.post("/staff/catalog/room/new/", {
+            "building": self.v.pk, "number": "509", "capacity": "30", "pc_count": "0", "board_chalk": "on",
+        })
+        room = Room.objects.get()
+        self.assertRedirects(resp, f"/staff/catalog/room/{room.pk}/")
+        self.client.post(f"/staff/catalog/room/{room.pk}/", {
+            "building": self.v.pk, "number": "509", "capacity": "30", "pc_count": "0", "board_chalk": "on",
+            "inline-TOTAL_FORMS": "1", "inline-INITIAL_FORMS": "0", "inline-MIN_NUM_FORMS": "0", "inline-MAX_NUM_FORMS": "1000",
+            "inline-0-date": D.isoformat(), "inline-0-time_from": "09:00", "inline-0-time_to": "15:00",
+        })
+        self.assertEqual(room.windows.count(), 1)
+
+    def test_event_master_classes_saved(self):
+        a, b = self.mc("Роботы"), self.mc("Химия")
+        self.client.post("/staff/catalog/event/new/", {
+            "title": "День науки", "date": D.isoformat(), "time_from": "10:00", "time_to": "15:00",
+            "master_classes": [a.pk, b.pk],
+        })
+        from .models import Event
+        self.assertEqual(Event.objects.get().master_classes.count(), 2)
+
+    def test_cannot_delete_room_with_lessons(self):
+        room = self.room(self.av, "1109")
+        self.request([self.mc("Роботы")])
+        run_distribution()
+        resp = self.client.post(f"/staff/catalog/room/{room.pk}/delete/", follow=True)
+        self.assertContains(resp, "Нельзя удалить")
+        self.assertTrue(Room.objects.filter(pk=room.pk).exists())

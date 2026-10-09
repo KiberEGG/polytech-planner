@@ -1,0 +1,41 @@
+  {{ form.non_field_errors }}
+  <div class="card">
+    {% include "planner/_field.html" with field=form.kind %}
+    <div id="event-block">
+      {% include "planner/_field.html" with field=form.event %}
+      <p id="event-info" class="muted"></p>
+      {% include "planner/_field.html" with field=form.event_master_classes %}
+    </div>
+    <div id="mc-block">
+      {% include "planner/_field.html" with field=form.master_classes %}
+      <div class="field">
+        <label>Доступные дни *</label>
+        <div class="help">Одна или несколько дат с удобным временем — система выберет одну из них.</div>
+        {{ days.management_form }}
+        {{ days.non_form_errors }}
+        {% for f in days %}
+          <div class="days-row">{{ f.date }}{{ f.time_from }}{{ f.time_to }}</div>
+          {{ f.non_field_errors }}{{ f.date.errors }}{{ f.time_from.errors }}{{ f.time_to.errors }}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Школа</h2>
+    {% include "planner/_field.html" with field=form.school %}
+    <div id="school-name-block">{% include "planner/_field.html" with field=form.school_name %}</div>
+    {% include "planner/_field.html" with field=form.classes_text %}
+    <datalist id="classes-list"></datalist>
+    {% include "planner/_field.html" with field=form.participants %}
+    {% include "planner/_field.html" with field=form.site %}
+  </div>
+  <div class="card">
+    <h2>Контактное лицо</h2>
+    {% include "planner/_field.html" with field=form.contact_name %}
+    {% include "planner/_field.html" with field=form.contact_position %}
+    {% include "planner/_field.html" with field=form.phone %}
+    {% include "planner/_field.html" with field=form.email %}
+    {% include "planner/_field.html" with field=form.comment %}
+    {% if form.consent %}{% include "planner/_field.html" with field=form.consent %}{% endif %}
+    {% if form.accept_now %}{% include "planner/_field.html" with field=form.accept_now %}{% endif %}
+  </div>

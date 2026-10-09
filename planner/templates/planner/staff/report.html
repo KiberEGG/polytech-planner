@@ -1,6 +1,11 @@
 {% extends "planner/staff/base.html" %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
+<div class="tabs">
+  <a href="{% url 'planner:report' 'day' %}" class="{% if kind == 'day' %}active{% endif %}">По аудиториям на день</a>
+  <a href="{% url 'planner:report' 'school' %}" class="{% if kind == 'school' %}active{% endif %}">По школе</a>
+  <a href="{% url 'planner:report' 'teacher' %}" class="{% if kind == 'teacher' %}active{% endif %}">По преподавателю</a>
+</div>
 <div class="card">
   <h1>{{ title }}</h1>
   <form method="get" class="toolbar">

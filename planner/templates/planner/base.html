@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="top">{% block header %}<strong>Мастер-классы Политеха</strong>{% endblock %}</header>
-  <main class="{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+  <main class="{% block main_class %}{% endblock %}">{% block messages %}{% endblock %}{% block content %}{% endblock %}</main>
   {% block scripts %}{% endblock %}
 </body>
 </html>

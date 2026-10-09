@@ -3,13 +3,13 @@
 import datetime
 import json
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from . import reports
 from .models import Lesson, Request, Room, RoomWindow, School, Teacher
+from .permissions import staff_required
 from .rules import check_placement
 from .scheduler import run_distribution
 from .services import place_lesson, unplace_lesson
@@ -50,7 +50,7 @@ def lesson_json(lesson):
 LESSON_RELATED = ("master_class", "teacher", "request__school", "room__building")
 
 
-@staff_member_required
+@staff_required
 def schedule_grid(request):
     date = parse_date(request.GET.get("date"))
     if date is None:
@@ -133,7 +133,7 @@ def _teacher_arg(body):
     return int(body["teacher_id"]) if body["teacher_id"] else None
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_place(request, pk):
     """Перенести/поставить занятие: {date, room_id, start: "HH:MM", force}."""
@@ -153,7 +153,7 @@ def api_place(request, pk):
     return _result(result, lesson, applied)
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_teacher(request, pk):
     """Сменить преподавателя: {teacher_id, force}."""
@@ -178,7 +178,7 @@ def api_teacher(request, pk):
     return _result(result, lesson, applied=not result.errors)
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_unplace(request, pk):
     """Снять занятие с расписания (оно вернётся в список «ждёт»)."""
@@ -189,7 +189,7 @@ def api_unplace(request, pk):
     return JsonResponse({"ok": True, "lesson": lesson_json(lesson)})
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_delete(request, pk):
     lesson = get_object_or_404(Lesson, pk=pk)
@@ -197,7 +197,7 @@ def api_delete(request, pk):
     return JsonResponse({"ok": True})
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_distribute(request):
     report = run_distribution()
@@ -211,7 +211,7 @@ def api_distribute(request):
     )
 
 
-@staff_member_required
+@staff_required
 @require_POST
 def api_window(request):
     """Создать, сдвинуть или удалить окно аудитории.
@@ -259,7 +259,7 @@ REPORT_TITLES = {
 }
 
 
-@staff_member_required
+@staff_required
 def report(request, kind):
     if kind not in REPORT_TITLES:
         raise Http404

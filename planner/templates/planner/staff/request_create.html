@@ -1,0 +1,14 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}Новая заявка{% endblock %}
+{% block content %}
+<div class="narrow-col">
+<p><a href="{% url 'planner:request_list' %}">← Заявки</a></p>
+<h1>Новая заявка</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "planner/_request_form_body.html" %}
+  <button type="submit">Создать заявку</button>
+</form>
+</div>
+{% endblock %}
+{% block scripts %}{% include "planner/_request_form_script.html" %}{% endblock %}

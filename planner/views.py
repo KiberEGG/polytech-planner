@@ -24,6 +24,15 @@ def request_form(request):
     else:
         form = RequestForm()
         days = RequestDayFormSet(prefix="days")
+    return render(
+        request,
+        "planner/request_form.html",
+        {"form": form, "days": days, **form_context(form)},
+    )
+
+
+def form_context(form):
+    """Данные для скрипта формы: состав мероприятий и классы школ."""
     events = {
         str(e.pk): {
             "date": e.date.strftime("%d.%m.%Y"),
@@ -36,11 +45,7 @@ def request_form(request):
         str(s.pk): [c.name for c in s.classes.all()]
         for s in form.fields["school"].queryset.prefetch_related("classes")
     }
-    return render(
-        request,
-        "planner/request_form.html",
-        {"form": form, "days": days, "events": events, "school_classes": school_classes},
-    )
+    return {"events": events, "school_classes": school_classes}
 
 
 def request_done(request, pk):

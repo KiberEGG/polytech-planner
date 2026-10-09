@@ -38,7 +38,7 @@
     remove: (id) => `{% url 'planner:api_delete' 0 %}`.replace("/0/", `/${id}/`),
     window: `{% url 'planner:api_window' %}`,
     distribute: `{% url 'planner:api_distribute' %}`,
-    adminRequest: (id) => `{% url 'admin:planner_request_change' 0 %}`.replace("/0/", `/${id}/`),
+    adminRequest: (id) => `{% url 'planner:request_detail' 0 %}`.replace("/0/", `/${id}/`),
   };
 </script>
 <script src="{% static 'planner/grid.js' %}"></script>

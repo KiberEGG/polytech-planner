@@ -380,9 +380,10 @@ class Lesson(models.Model):
     master_class = models.ForeignKey(
         MasterClass, models.PROTECT, related_name="lessons", verbose_name="мастер-класс"
     )
+    # PROTECT: аудиторию с назначенными занятиями удалить нельзя.
     room = models.ForeignKey(
         Room,
-        models.SET_NULL,
+        models.PROTECT,
         null=True,
         blank=True,
         related_name="lessons",

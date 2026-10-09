@@ -1,0 +1,15 @@
+{% extends "planner/base.html" %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Вход для администратора</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% include "planner/_field.html" with field=form.username %}
+    {% include "planner/_field.html" with field=form.password %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Войти</button>
+  </form>
+</div>
+{% endblock %}

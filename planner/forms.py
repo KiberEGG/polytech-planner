@@ -122,8 +122,8 @@ def days_from_formset(formset):
     return [f.cleaned_data for f in formset if f.cleaned_data and not f.errors]
 
 
-def create_request_from_form(form, day_formset):
-    """Сохраняет заявку с формы школы. Школа и классы — текстом до принятия."""
+def create_request_from_form(form, day_formset, source=Request.Source.FORM):
+    """Сохраняет заявку. Школа и классы хранятся текстом до принятия."""
     from .services import sync_request_lessons
 
     data = form.cleaned_data
@@ -139,7 +139,7 @@ def create_request_from_form(form, day_formset):
         phone=data["phone"],
         email=data.get("email") or "",
         comment=data.get("comment") or "",
-        source=Request.Source.FORM,
+        source=source,
         status=Request.Status.NEW,
     )
     if form.is_event:

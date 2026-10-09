@@ -17,8 +17,14 @@ def split_classes(text):
 
 
 @transaction.atomic
-def accept_request(request):
-    """Принимает заявку: при необходимости заводит школу и классы в справочник."""
+def accept_request(request, school=None):
+    """Принимает заявку: при необходимости заводит школу и классы в справочник.
+
+    school — школа из справочника, которую выбрал администратор; если не задана,
+    ищется по названию из заявки, а если такой нет — создаётся.
+    """
+    if school is not None:
+        request.school = school
     if request.school_id is None:
         name = request.school_name.strip()
         school = School.objects.filter(name__iexact=name).first()
@@ -40,8 +46,10 @@ def accept_request(request):
 def reject_request(request):
     request.status = Request.Status.REJECTED
     request.save()
-    request.lessons.filter(status=Lesson.Status.ASSIGNED, is_manual=False).update(
-        room=None, start_at=None, end_at=None, status=Lesson.Status.PENDING
+    # Отклонённая заявка не должна занимать аудитории.
+    request.lessons.exclude(status=Lesson.Status.PENDING).update(
+        room=None, start_at=None, end_at=None, status=Lesson.Status.PENDING,
+        conflict_reason="", is_manual=False,
     )
 
 
