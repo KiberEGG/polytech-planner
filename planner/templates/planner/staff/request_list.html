@@ -1,0 +1,42 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}Заявки{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Заявки</h1>
+  <a class="btn" href="{% url 'planner:request_create' %}">+ Новая заявка</a>
+  <form method="post" action="{% url 'planner:distribute_all' %}">{% csrf_token %}<button class="btn secondary">Распределить все принятые</button></form>
+</div>
+<div class="tabs">
+  {% for key, label, n in tabs %}
+    <a href="?status={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}" class="{% if key == status %}active{% endif %}">{{ label }} <span class="count">{{ n }}</span></a>
+  {% endfor %}
+  <form method="get" class="search">
+    <input type="hidden" name="status" value="{{ status }}">
+    <input type="text" name="q" value="{{ q }}" placeholder="Поиск: школа, контакт, №">
+  </form>
+</div>
+<div class="card flush">
+  {% if requests %}
+  <table class="list hover">
+    <thead><tr><th>№</th><th>Подана</th><th>Школа, классы</th><th>На что</th><th>Чел.</th><th>Дни</th><th>Статус</th><th>Занятия</th></tr></thead>
+    <tbody>
+    {% for r in requests %}
+      <tr onclick="location.href='{% url 'planner:request_detail' r.pk %}'">
+        <td><a href="{% url 'planner:request_detail' r.pk %}">{{ r.pk }}</a></td>
+        <td class="nowrap">{{ r.created_at|date:"d.m.Y H:i" }}<br><span class="muted">{{ r.get_source_display }}</span></td>
+        <td><b>{{ r.school_display }}</b>{% if not r.school_id and r.status == 'new' and r.school_name %} <span class="tag">новая школа?</span>{% endif %}<br>{{ r.classes_display }}</td>
+        <td>{% if r.event %}{{ r.event.title }}{% else %}мастер-классы{% endif %}</td>
+        <td>{{ r.participants }}</td>
+        <td class="nowrap">{% for d in r.days.all %}{{ d }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>
+        <td><span class="badge s-{{ r.status }}">{{ r.get_status_display }}</span></td>
+        <td class="nowrap">
+          {{ r.lessons_assigned }} / {{ r.lessons_total }} назначено
+          {% if r.lessons_problem %}<br><span class="status-conflict">проблем: {{ r.lessons_problem }}</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted pad">Заявок нет.</p>{% endif %}
+</div>
+{% endblock %}

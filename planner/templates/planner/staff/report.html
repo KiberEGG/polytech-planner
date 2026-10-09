@@ -1,0 +1,43 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="tabs">
+  <a href="{% url 'planner:report' 'day' %}" class="{% if kind == 'day' %}active{% endif %}">По аудиториям на день</a>
+  <a href="{% url 'planner:report' 'school' %}" class="{% if kind == 'school' %}active{% endif %}">По школе</a>
+  <a href="{% url 'planner:report' 'teacher' %}" class="{% if kind == 'teacher' %}active{% endif %}">По преподавателю</a>
+</div>
+<div class="card">
+  <h1>{{ title }}</h1>
+  <form method="get" class="toolbar">
+    {% if kind == "day" %}
+      <input type="date" name="date" value="{{ date|date:'Y-m-d' }}">
+    {% else %}
+      {% if kind == "school" %}
+        <select name="school" style="width:auto">
+          <option value="">— школа —</option>
+          {% for s in schools %}<option value="{{ s.pk }}" {% if selected.pk == s.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+      {% else %}
+        <select name="teacher" style="width:auto">
+          <option value="">— преподаватель —</option>
+          {% for t in teachers %}<option value="{{ t.pk }}" {% if selected.pk == t.pk %}selected{% endif %}>{{ t.full_name }}</option>{% endfor %}
+        </select>
+      {% endif %}
+      <label class="muted">с</label><input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" style="width:auto">
+      <label class="muted">по</label><input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" style="width:auto">
+    {% endif %}
+    <button type="submit">Показать</button>
+    {% if columns %}<a class="btn secondary" href="?{{ export_query }}">Выгрузить в Excel</a>{% endif %}
+  </form>
+</div>
+{% if columns %}
+<div class="card" style="overflow-x:auto">
+  {% if rows %}
+  <table class="list">
+    <thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in rows %}<tr>{% for v in r %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<p class="muted">Назначенных занятий нет.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

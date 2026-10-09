@@ -1,0 +1,45 @@
+{% extends "planner/staff/base.html" %}
+{% load static %}
+{% block title %}Расписание на {{ date|date:"d.m.Y" }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'planner/grid.css' %}">{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <a class="btn secondary" href="?date={{ prev|date:'Y-m-d' }}">←</a>
+  <form method="get"><input type="date" name="date" value="{{ date|date:'Y-m-d' }}" onchange="this.form.submit()"></form>
+  <a class="btn secondary" href="?date={{ next|date:'Y-m-d' }}">→</a>
+  <h1>Расписание на {{ date|date:"d.m.Y, l" }}</h1>
+  <button id="distribute">Распределить заявки</button>
+</div>
+{% if window_dates %}
+<div class="dates muted">Дни с окнами:
+  {% for d in window_dates %}<a href="?date={{ d|date:'Y-m-d' }}" class="{% if d == date %}current{% endif %}">{{ d|date:"d.m" }}</a>{% endfor %}
+</div>
+{% endif %}
+<p class="muted hint">Перетащите занятие в строку аудитории. Клик по занятию — подробности, клик по окну — изменить его,
+  двойной клик по пустому месту — новое окно.</p>
+<div class="layout">
+  <div class="grid-wrap"><div id="grid"></div></div>
+  <aside>
+    <div class="card" id="details"><p class="muted">Выберите занятие.</p></div>
+    <div class="card">
+      <h2>Не распределены <span id="unplaced-count" class="muted"></span></h2>
+      <div id="unplaced"></div>
+    </div>
+  </aside>
+</div>
+{{ data|json_script:"grid-data" }}
+{% endblock %}
+{% block scripts %}
+<script>
+  window.GRID_URLS = {
+    place: (id) => `{% url 'planner:api_place' 0 %}`.replace("/0/", `/${id}/`),
+    teacher: (id) => `{% url 'planner:api_teacher' 0 %}`.replace("/0/", `/${id}/`),
+    unplace: (id) => `{% url 'planner:api_unplace' 0 %}`.replace("/0/", `/${id}/`),
+    remove: (id) => `{% url 'planner:api_delete' 0 %}`.replace("/0/", `/${id}/`),
+    window: `{% url 'planner:api_window' %}`,
+    distribute: `{% url 'planner:api_distribute' %}`,
+    adminRequest: (id) => `{% url 'planner:request_detail' 0 %}`.replace("/0/", `/${id}/`),
+  };
+</script>
+<script src="{% static 'planner/grid.js' %}"></script>
+{% endblock %}

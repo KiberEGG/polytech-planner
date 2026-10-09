@@ -1,0 +1,26 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}{{ entry.title }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'planner:catalog_index' %}">← Справочники</a></p>
+<div class="page-head">
+  <h1>{{ entry.title }}</h1>
+  <a class="btn" href="{% url 'planner:catalog_create' kind %}">+ Добавить</a>
+  {% if entry.search %}
+  <form method="get" class="search"><input type="text" name="q" value="{{ q }}" placeholder="Поиск"></form>
+  {% endif %}
+</div>
+<div class="card flush">
+  {% if rows %}
+  <table class="list hover">
+    <thead><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for obj, cells in rows %}
+      <tr onclick="location.href='{% url 'planner:catalog_edit' kind obj.pk %}'">
+        {% for c in cells %}<td>{% if forloop.first %}<a href="{% url 'planner:catalog_edit' kind obj.pk %}">{{ c }}</a>{% else %}{{ c }}{% endif %}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted pad">Записей нет.</p>{% endif %}
+</div>
+{% endblock %}

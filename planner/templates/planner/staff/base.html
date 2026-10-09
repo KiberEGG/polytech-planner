@@ -1,0 +1,20 @@
+{% extends "planner/base.html" %}
+{% block header %}
+  <strong>Мастер-классы</strong>
+  {% with u=request.resolver_match.url_name %}
+  <nav class="nav">
+    <a href="{% url 'planner:request_list' %}" class="{% if u == 'request_list' or u == 'request_detail' or u == 'request_create' %}active{% endif %}">Заявки</a>
+    <a href="{% url 'planner:grid' %}" class="{% if u == 'grid' %}active{% endif %}">Сетка на день</a>
+    <a href="{% url 'planner:report' 'day' %}" class="{% if u == 'report' %}active{% endif %}">Расписание</a>
+    <a href="{% url 'planner:catalog_index' %}" class="{% if u|slice:':7' == 'catalog' %}active{% endif %}">Справочники</a>
+  </nav>
+  {% endwith %}
+  <span class="user">
+    {{ request.user.get_full_name|default:request.user.username }}
+    <form method="post" action="{% url 'planner:logout' %}">{% csrf_token %}<button class="link">Выйти</button></form>
+  </span>
+{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block messages %}
+  {% if messages %}<div class="messages">{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+{% endblock %}

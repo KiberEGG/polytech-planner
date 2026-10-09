@@ -1,0 +1,10 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}Справочники{% endblock %}
+{% block content %}
+<h1>Справочники</h1>
+<div class="tiles">
+  {% for kind, title, n in sections %}
+    <a class="card tile" href="{% url 'planner:catalog_list' kind %}"><b>{{ title }}</b><span class="muted">{{ n }}</span></a>
+  {% endfor %}
+</div>
+{% endblock %}

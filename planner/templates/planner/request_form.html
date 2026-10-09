@@ -1,0 +1,11 @@
+{% extends "planner/base.html" %}
+{% block title %}Заявка на мастер-классы{% endblock %}
+{% block content %}
+<h1>Заявка на мастер-классы</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "planner/_request_form_body.html" %}
+  <button type="submit">Отправить заявку</button>
+</form>
+{% endblock %}
+{% block scripts %}{% include "planner/_request_form_script.html" %}{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "planner/staff/base.html" %}
+{% block title %}Заявка №{{ req.pk }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'planner:request_list' %}?status={{ req.status }}">← Заявки</a></p>
+<div class="page-head">
+  <h1>Заявка №{{ req.pk }} · {{ req.school_display }}</h1>
+  <span class="badge s-{{ req.status }}">{{ req.get_status_display }}</span>
+  {% if req.is_distributed %}<span class="badge s-accepted">распределена</span>{% endif %}
+</div>
+<p class="muted">Подана {{ req.created_at|date:"d.m.Y H:i" }} {% if req.source == "form" %}через форму{% else %}администратором{% endif %}{% if req.event %} · мероприятие «{{ req.event.title }}», {{ req.event.date|date:"d.m.Y" }}{% endif %}</p>
+
+<div class="two-col">
+  <div>
+    <div class="card">
+      <h2>Занятия</h2>
+      {% if lessons %}
+      <table class="list">
+        <thead><tr><th>Мастер-класс</th><th>Когда и где</th><th>Преподаватель</th><th>Статус</th><th></th></tr></thead>
+        <tbody>
+        {% for l in lessons %}
+          <tr>
+            <td><b>{{ l.master_class.title }}</b><br><span class="muted">{{ l.master_class.duration_min }} мин{% if l.master_class.needs_pc %} · ПК{% endif %}</span></td>
+            <td class="nowrap">{% if l.room %}{{ l.start_at|date:"d.m.Y" }}, {{ l.start_at|time:"H:i" }}–{{ l.end_at|time:"H:i" }}<br>{{ l.room.label }} <span class="muted">{{ l.room.site }}</span>
+              <br><a href="{% url 'planner:grid' %}?date={{ l.start_at|date:'Y-m-d' }}">в сетке</a>{% else %}<span class="muted">не поставлено</span>{% endif %}</td>
+            <td>{{ l.teacher|default:"—" }}</td>
+            <td><span class="status-{{ l.status }}">{{ l.get_status_display }}</span>{% if l.room %} <span class="muted">· {% if l.is_manual %}вручную{% else %}авто{% endif %}</span>{% endif %}
+              {% if l.conflict_reason %}<br><span class="muted">{{ l.conflict_reason }}</span>{% endif %}
+              {% if l.allow_repeat %}<br><span class="tag">повтор разрешён</span>{% endif %}</td>
+            <td class="actions">
+              <form method="post">{% csrf_token %}<input type="hidden" name="lesson" value="{{ l.pk }}">
+                {% if l.room %}<button name="action" value="unplace_lesson" class="link">снять</button>{% endif %}
+                {% if not req.allow_repeat %}<button name="action" value="toggle_repeat" class="link">{% if l.allow_repeat %}проверять повтор{% else %}разрешить повтор{% endif %}</button>{% endif %}
+                <button name="action" value="delete_lesson" class="link danger" onclick="return confirm('Удалить занятие из заявки?')">удалить</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="muted">В заявке нет мастер-классов.</p>{% endif %}
+      {% if add_form.fields.master_class.queryset.exists %}
+      <form method="post" class="inline-form">
+        {% csrf_token %}
+        {{ add_form.master_class }}
+        <button name="action" value="add_lesson" class="btn secondary">Добавить</button>
+      </form>
+      {{ add_form.master_class.errors }}
+      {% endif %}
+    </div>
+
+    <form method="post" class="card" novalidate>
+      {% csrf_token %}
+      <h2>Данные заявки</h2>
+      {{ edit_form.non_field_errors }}
+      <div class="form-grid">
+        {% for field in edit_form %}
+          {% if field.name == "comment" or field.name == "classes" %}<div class="span-2">{% include "planner/_field.html" %}</div>
+          {% else %}{% include "planner/_field.html" %}{% endif %}
+        {% endfor %}
+      </div>
+      <h2>Доступные дни</h2>
+      {% if req.event %}
+        <p class="muted">Заявка на мероприятие: {% for d in req.days.all %}{{ d }}{% endfor %}. Дата задаётся в мероприятии.</p>
+      {% else %}
+        {{ days.management_form }}
+        {{ days.non_form_errors }}
+        {% for f in days %}
+          <div class="days-row with-delete">{{ f.id }}{{ f.date }}{{ f.time_from }}{{ f.time_to }}<label class="muted">{{ f.DELETE }} удалить</label></div>
+          {{ f.non_field_errors }}{{ f.date.errors }}{{ f.time_from.errors }}{{ f.time_to.errors }}
+        {% endfor %}
+      {% endif %}
+      <button name="action" value="save">Сохранить</button>
+    </form>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>Решение</h2>
+      {% if req.status == "new" %}
+        <form method="post">
+          {% csrf_token %}
+          {% if not req.school_id %}
+            {% include "planner/_field.html" with field=accept_form.school %}
+            <p class="muted small">Из заявки: «{{ req.school_name }}», классы «{{ req.classes_text }}».
+              Если школы нет в справочнике, она и её классы добавятся при принятии.</p>
+          {% endif %}
+          <div class="btn-row">
+            <button name="action" value="accept">Принять</button>
+            <button name="action" value="reject" class="btn secondary danger" onclick="return confirm('Отклонить заявку?')">Отклонить</button>
+          </div>
+        </form>
+      {% elif req.status == "accepted" %}
+        <form method="post" class="btn-row">
+          {% csrf_token %}
+          <button name="action" value="distribute">Распределить</button>
+          <button name="action" value="reject" class="btn secondary danger" onclick="return confirm('Отклонить заявку? Её занятия будут сняты с расписания.')">Отклонить</button>
+        </form>
+      {% else %}
+        <form method="post">
+          {% csrf_token %}
+          <p class="muted">Заявка отклонена.</p>
+          <button name="action" value="accept" class="btn secondary">Всё-таки принять</button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h2>Контакт</h2>
+      <p>{{ req.contact_name }}<br><span class="muted">{{ req.contact_position }}</span></p>
+      <p><a href="tel:{{ req.phone }}">{{ req.phone }}</a>{% if req.email %}<br><a href="mailto:{{ req.email }}">{{ req.email }}</a>{% endif %}</p>
+      {% if req.school %}<p class="muted small">Школа в справочнике: <a href="{% url 'planner:catalog_edit' 'school' req.school.pk %}">{{ req.school.name }}</a></p>{% endif %}
+    </div>
+    {% if req.comment %}<div class="card"><h2>Комментарий</h2><p>{{ req.comment|linebreaksbr }}</p></div>{% endif %}
+  </aside>
+</div>
+{% endblock %}
