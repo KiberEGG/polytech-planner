@@ -4,11 +4,12 @@ import datetime
 import json
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from .models import Lesson, Request, Room, RoomWindow, Teacher
+from . import reports
+from .models import Lesson, Request, Room, RoomWindow, School, Teacher
 from .rules import check_placement
 from .scheduler import run_distribution
 from .services import place_lesson, unplace_lesson
@@ -249,3 +250,64 @@ def api_window(request):
         window.save()
     released = Lesson.objects.filter(status=Lesson.Status.CONFLICT).exclude(pk__in=before).count()
     return JsonResponse({"ok": True, "released": released})
+
+
+REPORT_TITLES = {
+    "day": "Расписание на день по аудиториям",
+    "school": "Расписание школы",
+    "teacher": "Расписание преподавателя",
+}
+
+
+@staff_member_required
+def report(request, kind):
+    if kind not in REPORT_TITLES:
+        raise Http404
+    date = parse_date(request.GET.get("date"), datetime.date.today())
+    date_from = parse_date(request.GET.get("from"))
+    date_to = parse_date(request.GET.get("to"))
+    schools = School.objects.all()
+    teachers = Teacher.objects.all()
+    selected = None
+    columns, rows, title = [], [], REPORT_TITLES[kind]
+    if kind == "day":
+        columns, rows = reports.by_day(date)
+        title = f"Расписание на {date:%d.%m.%Y}"
+    elif kind == "school" and request.GET.get("school"):
+        selected = get_object_or_404(School, pk=request.GET["school"])
+        columns, rows = reports.by_school(selected, date_from, date_to)
+        title = f"Расписание: {selected.name}"
+    elif kind == "teacher" and request.GET.get("teacher"):
+        selected = get_object_or_404(Teacher, pk=request.GET["teacher"])
+        columns, rows = reports.by_teacher(selected, date_from, date_to)
+        title = f"Расписание: {selected.full_name}"
+
+    if request.GET.get("format") == "xlsx" and columns:
+        content = reports.to_xlsx(title, columns, rows)
+        response = HttpResponse(
+            content,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        filename = f"schedule-{kind}.xlsx"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    export_params = request.GET.copy()
+    export_params["format"] = "xlsx"
+    return render(
+        request,
+        "planner/staff/report.html",
+        {
+            "kind": kind,
+            "title": title,
+            "columns": columns,
+            "rows": rows,
+            "date": date,
+            "date_from": date_from,
+            "date_to": date_to,
+            "schools": schools,
+            "teachers": teachers,
+            "selected": selected,
+            "export_query": export_params.urlencode(),
+        },
+    )

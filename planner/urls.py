@@ -15,5 +15,6 @@ urlpatterns = [
     path("staff/api/lessons/<int:pk>/unplace", staff_views.api_unplace, name="api_unplace"),
     path("staff/api/lessons/<int:pk>/delete", staff_views.api_delete, name="api_delete"),
     path("staff/api/windows", staff_views.api_window, name="api_window"),
+    path("staff/report/<str:kind>/", staff_views.report, name="report"),
     path("staff/api/distribute", staff_views.api_distribute, name="api_distribute"),
 ]

@@ -2,6 +2,9 @@
 {% block header %}
   <strong>Мастер-классы · администратор</strong>
   <a href="{% url 'planner:grid' %}">Сетка на день</a>
+  <a href="{% url 'planner:report' 'day' %}">По аудиториям</a>
+  <a href="{% url 'planner:report' 'school' %}">По школе</a>
+  <a href="{% url 'planner:report' 'teacher' %}">По преподавателю</a>
   <a href="{% url 'admin:planner_request_changelist' %}">Заявки</a>
   <a href="{% url 'admin:index' %}">Справочники</a>
   <a href="{% url 'planner:request_form' %}">Форма для школ</a>

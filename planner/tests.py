@@ -287,7 +287,7 @@ class PublicFormTests(Fixtures, TestCase):
         self.assertEqual(self.client.get(f"/request/{req.pk}/").status_code, 404)
 
 
-class StaffApiTests(Fixtures, TestCase):
+class StaffClient(Fixtures):
     def setUp(self):
         super().setUp()
         from django.contrib.auth.models import User
@@ -300,6 +300,8 @@ class StaffApiTests(Fixtures, TestCase):
 
         return self.client.post(url, json.dumps(body), content_type="application/json").json()
 
+
+class StaffApiTests(StaffClient, TestCase):
     def test_grid_requires_staff(self):
         self.client.logout()
         self.assertEqual(self.client.get("/staff/").status_code, 302)
@@ -348,3 +350,23 @@ class StaffApiTests(Fixtures, TestCase):
         res = self.post("/staff/api/windows", {"id": window.pk, "from": "13:00", "to": "17:00"})
         self.assertEqual(res["released"], 1)
         self.assertEqual(req.lessons.get().status, Lesson.Status.CONFLICT)
+
+
+class ReportTests(StaffClient, TestCase):
+    def test_reports_and_excel(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        teacher = Teacher.objects.create(full_name="Петров")
+        self.room(self.av, "1109")
+        self.request([self.mc("Роботы", teacher=teacher)])
+        run_distribution()
+        resp = self.client.get(f"/staff/report/day/?date={D.isoformat()}")
+        self.assertContains(resp, "Роботы")
+        resp = self.client.get(f"/staff/report/school/?school={self.school.pk}")
+        self.assertContains(resp, "АВ 1109")
+        resp = self.client.get(f"/staff/report/teacher/?teacher={teacher.pk}&format=xlsx")
+        ws = load_workbook(io.BytesIO(resp.content)).active
+        self.assertEqual(ws["E4"].value, "Роботы")
+        self.assertEqual(self.client.get("/staff/report/nope/").status_code, 404)

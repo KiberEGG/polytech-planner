@@ -7,6 +7,8 @@ from .services import accept_request, reject_request, sync_request_lessons
 admin.site.site_header = "Планирование мастер-классов"
 admin.site.site_title = "Мастер-классы"
 admin.site.index_title = "Администрирование"
+# Ссылка «Открыть сайт» в админке ведёт в сетку расписания.
+admin.site.site_url = "/staff/"
 
 
 @admin.register(models.Building)
