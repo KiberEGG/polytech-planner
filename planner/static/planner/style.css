@@ -16,6 +16,7 @@ h2 { font-size: 18px; margin: 0 0 12px; }
 .field > label { display: block; font-weight: 600; margin-bottom: 4px; }
 .field .help { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .field ul { list-style: none; padding: 0; margin: 0; }
+.field label:has(input[type=checkbox]), .field label:has(input[type=radio]) { font-weight: normal; }
 .field li label { font-weight: normal; }
 input[type=text], input[type=email], input[type=number], input[type=date], input[type=time], select, textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: #fff;

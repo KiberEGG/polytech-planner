@@ -58,7 +58,7 @@
   const mcBlock = document.getElementById("mc-block");
   const eventSelect = document.getElementById("id_event");
   const eventInfo = document.getElementById("event-info");
-  const eventMcItems = document.querySelectorAll("#field-event_master_classes li");
+  const eventMcInputs = document.querySelectorAll("#field-event_master_classes input[type=checkbox]");
   const posted = {{ form.is_bound|yesno:"true,false" }};
 
   function kind() {
@@ -72,10 +72,9 @@
   function updateEvent(resetChecks) {
     const ev = events[eventSelect.value];
     eventInfo.textContent = ev ? `Дата: ${ev.date}, время: ${ev.time}` : "";
-    eventMcItems.forEach((li) => {
-      const input = li.querySelector("input");
+    eventMcInputs.forEach((input) => {
       const inEvent = ev && ev.master_classes.includes(Number(input.value));
-      li.classList.toggle("hidden", !inEvent);
+      input.closest("div").classList.toggle("hidden", !inEvent);
       if (!inEvent) input.checked = false;
       else if (resetChecks) input.checked = true;
     });

@@ -26,7 +26,10 @@ class RequestForm(forms.Form):
         initial=KIND_EVENT,
     )
     event = forms.ModelChoiceField(
-        label="Мероприятие", queryset=Event.objects.none(), required=False
+        label="Мероприятие",
+        queryset=Event.objects.none(),
+        required=False,
+        empty_label="— выберите мероприятие —",
     )
     event_master_classes = MasterClassChoiceField(
         label="Мастер-классы мероприятия",
